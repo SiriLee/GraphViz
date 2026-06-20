@@ -344,7 +344,7 @@ void GraphWidget::paintEvent(QPaintEvent* /*event*/)
 
     // ── 坐标变换 ──
     ViewTransform tr = m_dragging
-        ? computeViewTransform(m_positions, m_dragNode, width(), height())
+        ? m_dragTransform
         : computeViewTransform(m_positions, width(), height());
 
     // ── 收集所有边（按 id 去重，保留平行边）并按端点对分组 ──
