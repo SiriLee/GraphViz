@@ -283,10 +283,12 @@ void GraphWidget::mousePressEvent(QMouseEvent *event)
             // freeze bounding box excluding dragged vertex — keeps scale stable during drag
             m_dragTransform = computeViewTransform(m_positions, m_dragNode, width(), height());
 
-            // align: remap data position so screen position stays unchanged under exclude transform
+            // align: remap all vertices so scene appears identical under exclude transform
             ViewTransform normalTr = computeViewTransform(m_positions, width(), height());
             QPointF screenCenter = normalTr.map(m_positions[m_dragNode]);
-            m_positions[m_dragNode] = m_dragTransform.invMap(screenCenter);
+            for (auto it = m_positions.begin(); it != m_positions.end(); ++it) {
+                m_positions[it.key()] = m_dragTransform.invMap(normalTr.map(it.value()));
+            }
             m_dragOffset = event->position() - screenCenter;
             setCursor(Qt::ClosedHandCursor);
         }
