@@ -52,7 +52,8 @@ static std::string unescape(const std::string& raw) {
 static bool needsQuoting(const std::string& name) {
     if (name.empty()) return true;
     for (char c : name) {
-        if (c == ' ' || c == '"' || c == '#') return true;
+        if (c == ' ' || c == '"' || c == '#' || c == '-' || c == '<' || c == '>')
+            return true;
     }
     return false;
 }
@@ -172,31 +173,13 @@ parseVertexName(const std::string& line, size_t pos, std::string* error = nullpt
         // 未闭合引号 — 返回已读内容
         return {unescape(raw), pos};
     } else {
-        // 非引号名：读取直到空白或操作符起始符 (- 或 <)
+        // 非引号名：读取直到空白、操作符起始符或歧义字符
         size_t start = pos;
         while (pos < line.size()) {
             char c = line[pos];
-            if (c == ' ' || c == '\t') break;
-            // 遇到 - 或 <：需判断是否为操作符起始
-            // 规则：如果前面没有紧邻空白且当前字符是 - 或 <，则回退
-            if (c == '-' || c == '<') {
-                // 检查这是否像操作符起始
-                // 若前一个字符不是空白且当前是 -/<，可能是名称的一部分
-                // 策略：检查后面是否跟着 -/> 以确认是操作符
-                if (pos + 1 < line.size()) {
-                    char next = line[pos + 1];
-                    if (next == '-' || next == '>' || next == '<' ||
-                        std::isdigit(static_cast<unsigned char>(next))) {
-                        // 像操作符：- 或 < 后紧跟 -/>/<\\d
-                        break;
-                    }
-                }
-                // 单独一个 - 在行尾：也视为操作符
-                if (pos + 1 >= line.size()) break;
-            }
-            // 普通字符：允许字母、数字、Unicode（高位字节）、常见符号
-            // 排除 # 和 " 以避免干扰
-            if (c == '#') break;
+            if (c == ' ' || c == '\t' || c == '-' || c == '<'
+                || c == '>' || c == '#' || c == '"')
+                break;
             ++pos;
         }
         if (pos == start) return {"", pos};
@@ -218,6 +201,15 @@ parseVertexName(const std::string& line, size_t pos, std::string* error = nullpt
 /// 解析边操作符，返回 (opEnd, directed, weight, explicit_weight, reverse)
 /// reverse=true 表示方向为右→左（如 a<---b → b 指向 a）
 /// 若 opEnd==npos 表示解析失败（error 中记录原因）
+///
+/// 严格规范：
+///   操作符 = x [W] y
+///   x 由 '-' 和可选 '<' 组成, '<' 只能在 x 最左端
+///   y 由 '-' 和可选 '>' 组成, '>' 只能在 y 最右端
+///   W 缺失时: x+y 合计 ≥1 个 '-'
+///   W 存在时: x、y 各自 ≥1 个 '-'
+///   W 必须可解析为浮点数 (负数须引号), 否则报错
+///   尾部数字 (未被 '-' 或 '>' 跟随) 归还右顶点名
 static std::tuple<size_t, bool, double, bool, bool>
 parseOperator(const std::string& line, size_t pos, std::string& error) {
     error.clear();
@@ -237,15 +229,17 @@ parseOperator(const std::string& line, size_t pos, std::string& error) {
         return {std::string::npos, false, 1.0, false, false};
     }
 
-    // 收集操作符字符：[-\d.<>] 以及引号包裹的权重
+    // ── Phase 1: 收集操作符字符 ──
     std::string opChars;
     bool hasQuotedWeight = false;
     std::string quotedWeightStr;
+    size_t quotedWeightPos = std::string::npos;  // 引号权重在 opChars 中的逻辑位置
 
     while (pos < line.size()) {
         char c = line[pos];
         if (c == '"') {
             // 引号包裹的权重（如 "-2"）
+            quotedWeightPos = opChars.size();
             ++pos;
             std::string quoted;
             while (pos < line.size() && line[pos] != '"') {
@@ -269,12 +263,17 @@ parseOperator(const std::string& line, size_t pos, std::string& error) {
         return {std::string::npos, false, 1.0, false, false};
     }
 
-    // ── 裁剪操作符末尾的右顶点数字 ──
+    // ── Phase 2: 裁剪末尾数字 → 归还右顶点 ──
+    // 仅数字/小数点可被裁剪；操作符字符保留用于校验
     size_t effectiveEnd = opChars.size();
     for (size_t i = opChars.size(); i > 0; --i) {
         char c = opChars[i - 1];
         if (c == '>' || c == '-') {
             effectiveEnd = i;
+            break;
+        }
+        // 仅裁剪数字和小数点；其他字符（如 '<'）保留
+        if (!std::isdigit(static_cast<unsigned char>(c)) && c != '.') {
             break;
         }
     }
@@ -283,68 +282,63 @@ parseOperator(const std::string& line, size_t pos, std::string& error) {
         opChars.resize(effectiveEnd);
     }
 
-    // ── 结构合法性校验 ──
+    // 操作符必须以 - 或 > 结尾
     if (!opChars.empty()) {
-        // 操作符必须以 - 或 < 开头（已由 first 保证）
-        // 操作符必须以 - 或 > 结尾
         char last = opChars.back();
         if (last != '-' && last != '>') {
             error = "Operator must end with '-' or '>'";
             return {std::string::npos, false, 1.0, false, false};
         }
+    }
 
-        // < 只能出现在开头
-        for (size_t i = 1; i < opChars.size(); ++i) {
-            if (opChars[i] == '<') {
-                error = "Invalid operator: '<' must be at the beginning";
-                return {std::string::npos, false, 1.0, false, false};
-            }
+    // ── Phase 3: 统计并校验 '<' 和 '>' ──
+    int ltCount = 0, gtCount = 0;
+    size_t ltPos = std::string::npos, gtPos = std::string::npos;
+    for (size_t i = 0; i < opChars.size(); ++i) {
+        if (opChars[i] == '<') {
+            ltCount++;
+            if (ltPos == std::string::npos) ltPos = i;
         }
-
-        // > 只能出现在末尾
-        for (size_t i = 0; i + 1 < opChars.size(); ++i) {
-            if (opChars[i] == '>') {
-                error = "Invalid operator: '>' must be at the end";
-                return {std::string::npos, false, 1.0, false, false};
-            }
+        if (opChars[i] == '>') {
+            gtCount++;
+            gtPos = i;
         }
     }
 
-    // ── 分析操作符 ──
-    bool directed = false;
-    bool hasBidi = false;
+    if (ltCount > 1) {
+        error = "Invalid operator: '<' appears more than once";
+        return {std::string::npos, false, 1.0, false, false};
+    }
+    if (gtCount > 1) {
+        error = "Invalid operator: '>' appears more than once";
+        return {std::string::npos, false, 1.0, false, false};
+    }
+
+    // ── Phase 4: 提取权重 ──
     double weight = 1.0;
     bool explicit_weight = false;
+    size_t weightStart = std::string::npos;
+    size_t weightLen = 0;
 
-    for (char c : opChars) {
-        if (c == '>') directed = true;
-        if (c == '<') hasBidi = true;
-    }
-
-    // 方向分析
-    bool reverse = false;
-    if (directed && hasBidi) {
-        // 同时含 < 和 > → 无向
-        directed = false;
-    } else if (hasBidi && !directed) {
-        // 仅含 < 不含 > → 有向（右→左）
-        directed = true;
-        reverse = true;
-    }
-
-    // 提取权重
     if (hasQuotedWeight) {
         try {
             weight = std::stod(quotedWeightStr);
-        } catch (...) { weight = 1.0; }
+        } catch (...) {
+            error = "Weight value \"" + quotedWeightStr + "\" is not a valid number";
+            return {std::string::npos, false, 1.0, false, false};
+        }
         explicit_weight = true;
+        weightStart = quotedWeightPos;
+        weightLen = 0;  // 引号权重不占用 opChars 空间
     } else {
+        // 查找 opChars 中首个连续数字/小数点序列
         std::string numStr;
+        size_t numStart = std::string::npos;
         bool inNum = false;
         for (size_t i = 0; i < opChars.size(); ++i) {
             char c = opChars[i];
             if (std::isdigit(static_cast<unsigned char>(c)) || c == '.') {
-                if (!inNum) { inNum = true; numStr.clear(); }
+                if (!inNum) { inNum = true; numStart = i; numStr.clear(); }
                 numStr += c;
             } else {
                 if (inNum) break;
@@ -353,9 +347,92 @@ parseOperator(const std::string& line, size_t pos, std::string& error) {
         if (!numStr.empty()) {
             try {
                 weight = std::stod(numStr);
-            } catch (...) { weight = 1.0; }
+            } catch (...) {
+                error = "Weight value \"" + numStr + "\" is not a valid number";
+                return {std::string::npos, false, 1.0, false, false};
+            }
             explicit_weight = true;
+            weightStart = numStart;
+            weightLen = numStr.size();
         }
+    }
+
+    // ── Phase 5: 提取 x / y 并校验 ──
+    std::string xPart, yPart;
+
+    if (explicit_weight) {
+        // W 存在：以权重为界拆分
+        if (hasQuotedWeight)
+            xPart = opChars.substr(0, quotedWeightPos);
+        else
+            xPart = opChars.substr(0, weightStart);
+        yPart = opChars.substr(hasQuotedWeight ? quotedWeightPos
+                                                : weightStart + weightLen);
+
+        // x 和 y 各自必须 ≥1 个 '-'
+        auto countDashes = [](const std::string& s) -> int {
+            int n = 0;
+            for (char c : s) if (c == '-') ++n;
+            return n;
+        };
+
+        if (countDashes(xPart) < 1) {
+            error = "x must contain at least one '-' when weight is present";
+            return {std::string::npos, false, 1.0, false, false};
+        }
+        if (countDashes(yPart) < 1) {
+            error = "y must contain at least one '-' when weight is present";
+            return {std::string::npos, false, 1.0, false, false};
+        }
+
+        // '<' 仅限 x 最左端
+        if (ltCount > 0 && (xPart.empty() || xPart[0] != '<')) {
+            error = "Invalid operator: '<' must be at the leftmost of x";
+            return {std::string::npos, false, 1.0, false, false};
+        }
+
+        // '>' 仅限 y 最右端
+        if (gtCount > 0 && (yPart.empty() || yPart.back() != '>')) {
+            error = "Invalid operator: '>' must be at the rightmost of y";
+            return {std::string::npos, false, 1.0, false, false};
+        }
+    } else {
+        // W 缺失：整个操作符合计 ≥1 个 '-'
+        int totalDashes = 0;
+        for (char c : opChars) if (c == '-') ++totalDashes;
+        if (totalDashes < 1) {
+            error = "Operator must contain at least one '-'";
+            return {std::string::npos, false, 1.0, false, false};
+        }
+
+        // '<' 仅限最左端
+        if (ltCount > 0 && ltPos != 0) {
+            error = "Invalid operator: '<' must be at the beginning";
+            return {std::string::npos, false, 1.0, false, false};
+        }
+
+        // '>' 仅限最右端
+        if (gtCount > 0 && gtPos != opChars.size() - 1) {
+            error = "Invalid operator: '>' must be at the end";
+            return {std::string::npos, false, 1.0, false, false};
+        }
+    }
+
+    // ── Phase 6: 确定方向 ──
+    bool directed = false;
+    bool reverse = false;
+
+    if (ltCount > 0 && gtCount > 0) {
+        // 同时含 < 和 > → 无向
+        directed = false;
+    } else if (ltCount > 0) {
+        // 仅 < → 有向（右→左）
+        directed = true;
+        reverse = true;
+    } else if (gtCount > 0) {
+        // 仅 > → 有向（左→右）
+        directed = true;
+        reverse = false;
     }
 
     return {pos, directed, weight, explicit_weight, reverse};
@@ -423,12 +500,23 @@ bool GraphParser::parseLine(const std::string& line, Graph& graph,
 
     // 3. 解析右顶点
     std::string rightError;
-    auto [right, _] = parseVertexName(line, opEnd, &rightError);
+    auto [right, rightEnd] = parseVertexName(line, opEnd, &rightError);
     if (right.empty()) {
         error = rightError.empty()
             ? "Missing right vertex name after operator"
             : rightError;
         return false;
+    }
+
+    // 3.5. 检查边后是否有残余内容
+    {
+        size_t checkPos = rightEnd;
+        while (checkPos < line.size() && (line[checkPos] == ' ' || line[checkPos] == '\t'))
+            ++checkPos;
+        if (checkPos < line.size()) {
+            error = "Unexpected content after edge: '" + line.substr(checkPos) + "'";
+            return false;
+        }
     }
 
     // 4. 添加边（reverse 时交换方向：a<---b → b→a）
