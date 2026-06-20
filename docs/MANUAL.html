@@ -154,7 +154,7 @@
 
 <h2 id="input">输入格式参考</h2>
 
-<p>每行一条边或一个孤立点，支持 <code>#</code> 行注释和空行。顶点名可包含字母、数字、中文、<code>-</code>；含空格或引号时用 <code>"..."</code> 包裹，内部 <code>\"</code> 表示转义引号。仅含顶点名（无操作符）的行创建孤立点。</p>
+<p>每行一条边或一个孤立点，支持 <code>#</code> 行注释和空行。顶点名由字母、数字、中文、下划线组成；含空格、<code>-</code>、<code>&lt;</code>、<code>&gt;</code>、<code>"</code>、<code>#</code> 时必须用 <code>"..."</code> 包裹，内部 <code>\"</code> <code>\\</code> 转义。仅含顶点名（无操作符）的行创建孤立点。</p>
 
 <h3>基本格式</h3>
 
@@ -163,6 +163,8 @@
 <tr><td><code>A---B</code></td><td>无向边，权重 1.0</td></tr>
 <tr><td><code>A-3--B</code></td><td>无向边，权重 3</td></tr>
 <tr><td><code>A-->B</code></td><td>有向边 A→B，权重 1.0</td></tr>
+<tr><td><code>A-&gt;B</code></td><td>有向边 A→B（最简），权重 1.0</td></tr>
+<tr><td><code>A&lt;-B</code></td><td>有向边 B→A（最简），权重 1.0</td></tr>
 <tr><td><code>A-2.5->B</code></td><td>有向边 A→B，权重 2.5</td></tr>
 </table>
 
@@ -218,6 +220,11 @@
 <tr><td><code>A&gt;-&lt;B</code></td><td><code>&gt;</code> 不在末尾</td></tr>
 <tr><td><code>A-&lt;-B</code></td><td><code>&lt;</code> 不在开头</td></tr>
 <tr><td><code>A&gt;--B</code></td><td>以 <code>&gt;</code> 开头</td></tr>
+<tr><td><code>A-3&gt;B</code></td><td>y 无 <code>-</code>（权重后缺少分隔符）</td></tr>
+<tr><td><code>A&lt;&lt;--B</code></td><td><code>&lt;</code> 出现超过一次</td></tr>
+<tr><td><code>A--&gt;&gt;B</code></td><td><code>&gt;</code> 出现超过一次</td></tr>
+<tr><td><code>A-"abc"-&gt;B</code></td><td>权重不是有效浮点数</td></tr>
+<tr><td><code>my-node---B</code></td><td>顶点名含 <code>-</code> 须加引号</td></tr>
 </table>
 
 <hr>
