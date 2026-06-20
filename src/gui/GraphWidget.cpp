@@ -77,6 +77,56 @@ static ViewTransform computeViewTransform(const QHash<QString, QPointF>& positio
     }
     return tr;
 }
+
+/// 排除指定顶点的视图变换 — 拖拽时保持包围盒稳定，消除漂移
+static ViewTransform computeViewTransform(const QHash<QString, QPointF>& positions,
+                                           const QString& excludeVertex,
+                                           double widgetW, double widgetH)
+{
+    double minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+    bool found = false;
+    for (auto it = positions.begin(); it != positions.end(); ++it) {
+        if (it.key() == excludeVertex) continue;
+        found = true;
+        minX = std::min(minX, it->x());
+        minY = std::min(minY, it->y());
+        maxX = std::max(maxX, it->x());
+        maxY = std::max(maxY, it->y());
+    }
+
+    ViewTransform tr;
+    if (!found) {
+        // only the dragged vertex exists — center it, scale=1
+        tr.scaleX = 1.0;
+        tr.scaleY = 1.0;
+        QPointF p = positions.value(excludeVertex);
+        tr.offsetX = widgetW / 2.0 - p.x();
+        tr.offsetY = widgetH / 2.0 - p.y();
+        return tr;
+    }
+
+    double dataW = maxX - minX;
+    double dataH = maxY - minY;
+    const double availW = widgetW  - 2.0 * kPADDING;
+    const double availH = widgetH - 2.0 * kPADDING;
+
+    if (dataW < 1.0 && dataH < 1.0) {
+        tr.scaleX = 1.0;
+        tr.scaleY = 1.0;
+        tr.offsetX = widgetW / 2.0 - minX;
+        tr.offsetY = widgetH / 2.0 - minY;
+    } else {
+        double sw = (dataW < 1.0) ? 1.0 : availW / dataW;
+        double sh = (dataH < 1.0) ? 1.0 : availH / dataH;
+        double s = std::min(sw, sh);
+        tr.scaleX = s;
+        tr.scaleY = s;
+        tr.offsetX = kPADDING + (availW - dataW * s) / 2.0 - minX * s;
+        tr.offsetY = kPADDING + (availH - dataH * s) / 2.0 - minY * s;
+    }
+    return tr;
+}
+
 // ── 辅助：标准化边键 ──
 static inline QPair<QString, QString> makeKey(const QString& a, const QString& b) {
     return (a <= b) ? qMakePair(a, b) : qMakePair(b, a);
@@ -230,9 +280,13 @@ void GraphWidget::mousePressEvent(QMouseEvent *event)
             m_dragging = true;
             m_dragNode = node;
 
-            m_dragTransform = computeViewTransform(m_positions, width(), height());
-            QPointF dataPos = m_positions[m_dragNode];
-            QPointF screenCenter = m_dragTransform.map(dataPos);
+            // freeze bounding box excluding dragged vertex — keeps scale stable during drag
+            m_dragTransform = computeViewTransform(m_positions, m_dragNode, width(), height());
+
+            // align: remap data position so screen position stays unchanged under exclude transform
+            ViewTransform normalTr = computeViewTransform(m_positions, width(), height());
+            QPointF screenCenter = normalTr.map(m_positions[m_dragNode]);
+            m_positions[m_dragNode] = m_dragTransform.invMap(screenCenter);
             m_dragOffset = event->position() - screenCenter;
             setCursor(Qt::ClosedHandCursor);
         }
@@ -269,6 +323,7 @@ void GraphWidget::mouseReleaseEvent(QMouseEvent *event)
         m_dragging = false;
         m_dragNode.clear();
         setCursor(Qt::ArrowCursor);
+        update();  // trigger normal-transform repaint to re-fit view around all vertices
     }
     QWidget::mouseReleaseEvent(event);
 }
@@ -286,7 +341,9 @@ void GraphWidget::paintEvent(QPaintEvent* /*event*/)
     if (!m_graph || m_positions.empty()) return;
 
     // ── 坐标变换 ──
-    ViewTransform tr = computeViewTransform(m_positions, width(), height());
+    ViewTransform tr = m_dragging
+        ? computeViewTransform(m_positions, m_dragNode, width(), height())
+        : computeViewTransform(m_positions, width(), height());
 
     // ── 收集所有边（按 id 去重，保留平行边）并按端点对分组 ──
     auto allEdges = m_graph->getAllEdges();
