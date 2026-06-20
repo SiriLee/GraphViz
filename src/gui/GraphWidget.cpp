@@ -77,56 +77,6 @@ static ViewTransform computeViewTransform(const QHash<QString, QPointF>& positio
     }
     return tr;
 }
-
-/// 排除指定顶点的视图变换 — 拖拽时保持包围盒稳定，消除灵敏度漂移
-static ViewTransform computeViewTransform(const QHash<QString, QPointF>& positions,
-                                           const QString& excludeVertex,
-                                           double widgetW, double widgetH)
-{
-    double minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
-    bool found = false;
-    for (auto it = positions.begin(); it != positions.end(); ++it) {
-        if (it.key() == excludeVertex) continue;
-        found = true;
-        minX = std::min(minX, it->x());
-        minY = std::min(minY, it->y());
-        maxX = std::max(maxX, it->x());
-        maxY = std::max(maxY, it->y());
-    }
-
-    ViewTransform tr;
-    if (!found) {
-        // 仅被拖拽顶点存在 — 以该顶点为中心，scale=1
-        tr.scaleX = 1.0;
-        tr.scaleY = 1.0;
-        QPointF p = positions.value(excludeVertex);
-        tr.offsetX = widgetW / 2.0 - p.x();
-        tr.offsetY = widgetH / 2.0 - p.y();
-        return tr;
-    }
-
-    double dataW = maxX - minX;
-    double dataH = maxY - minY;
-    const double availW = widgetW  - 2.0 * kPADDING;
-    const double availH = widgetH - 2.0 * kPADDING;
-
-    if (dataW < 1.0 && dataH < 1.0) {
-        tr.scaleX = 1.0;
-        tr.scaleY = 1.0;
-        tr.offsetX = widgetW / 2.0 - minX;
-        tr.offsetY = widgetH / 2.0 - minY;
-    } else {
-        double sw = (dataW < 1.0) ? 1.0 : availW / dataW;
-        double sh = (dataH < 1.0) ? 1.0 : availH / dataH;
-        double s = std::min(sw, sh);
-        tr.scaleX = s;
-        tr.scaleY = s;
-        tr.offsetX = kPADDING + (availW - dataW * s) / 2.0 - minX * s;
-        tr.offsetY = kPADDING + (availH - dataH * s) / 2.0 - minY * s;
-    }
-    return tr;
-}
-
 // ── 辅助：标准化边键 ──
 static inline QPair<QString, QString> makeKey(const QString& a, const QString& b) {
     return (a <= b) ? qMakePair(a, b) : qMakePair(b, a);
@@ -285,7 +235,6 @@ void GraphWidget::mousePressEvent(QMouseEvent *event)
             QPointF screenCenter = m_dragTransform.map(dataPos);
             m_dragOffset = event->position() - screenCenter;
             setCursor(Qt::ClosedHandCursor);
-            grabMouse();
         }
     }
     QWidget::mousePressEvent(event);
@@ -320,8 +269,6 @@ void GraphWidget::mouseReleaseEvent(QMouseEvent *event)
         m_dragging = false;
         m_dragNode.clear();
         setCursor(Qt::ArrowCursor);
-        releaseMouse();
-        update();
     }
     QWidget::mouseReleaseEvent(event);
 }
