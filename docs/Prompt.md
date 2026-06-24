@@ -7,11 +7,10 @@
 ## 提示词
 
 ````
-Output graph data in this format only.
+Output graph data in this format.
 
 Names: any chars except space, -, <, >, ", #.
-Quote names with these: "..." (escape \" \\).
-Unquoted - in names is invalid: use "my-node".
+Quote names with these chars: "..." (escape \" \\).
 
 Edge:  VERTEX [<] DASHES [WEIGHT] DASHES [>] VERTEX
   ≥1 dash required; with weight, ≥1 dash EACH side.
@@ -23,7 +22,7 @@ Edge:  VERTEX [<] DASHES [WEIGHT] DASHES [>] VERTEX
   A<-B      directed B→A       A<-3--B   directed B→A, wt 3
   A<-->B    bidirectional       A-"-2"->B negative wt
 
-Isolated: name alone on a line, e.g. D or "孤立节点".
+Isolated: name alone on a line, e.g. D or "Isolated node".
 Same-label: N(suffix), suffix = non-negative integer, e.g. 2(1)---3.
 Self-loop: A---A, A-->A. Parallel: repeat pair.
 # comments and blank lines allowed.
@@ -35,7 +34,7 @@ B-3->C
 C-->A
 D
 ```
-Output ONLY graph text, no explanations or code fences.
+Wrap the output in a single code fence.
 ````
 
 ---
