@@ -34,7 +34,7 @@ B-3->C
 C-->A
 D
 ```
-Wrap the output in a single code fence.
+Wrap each graph in its own code fence.
 ````
 
 ---
