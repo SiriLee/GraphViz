@@ -238,8 +238,9 @@ parseOperator(const std::string& line, size_t pos, std::string& error) {
     while (pos < line.size()) {
         char c = line[pos];
         if (c == '"') {
-            // 引号包裹的权重（如 "-2"）
-            quotedWeightPos = opChars.size();
+            // 探测：闭合引号后是否还有操作符字符？
+            // 若是 → 引号包裹的权重（如 A-"-2"->B）；否则 → 右顶点开始
+            size_t savedPos = pos;
             ++pos;
             std::string quoted;
             while (pos < line.size() && line[pos] != '"') {
@@ -247,8 +248,20 @@ parseOperator(const std::string& line, size_t pos, std::string& error) {
                 ++pos;
             }
             if (pos < line.size()) ++pos;  // 跳过闭合引号
-            quotedWeightStr = quoted;
-            hasQuotedWeight = true;
+
+            // 闭合引号后紧跟操作符字符 → 这是引号权重
+            if (pos < line.size() &&
+                (line[pos] == '-' || line[pos] == '<' || line[pos] == '>' ||
+                 line[pos] == '.' ||
+                 std::isdigit(static_cast<unsigned char>(line[pos])))) {
+                quotedWeightPos = opChars.size();
+                quotedWeightStr = quoted;
+                hasQuotedWeight = true;
+            } else {
+                // 不是引号权重 → 回退，break 让 parseVertexName 处理
+                pos = savedPos;
+                break;
+            }
         } else if (c == '-' || c == '<' || c == '>' || c == '.' ||
                    std::isdigit(static_cast<unsigned char>(c))) {
             opChars += c;
