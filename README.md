@@ -84,7 +84,7 @@ cmake --build build-gui --config Release
 将 `CMakeUserPresets.json.example` 复制为 `CMakeUserPresets.json`，修改其中的 MinGW 编译器路径和 Qt 路径指向本机 Windows 侧安装。WSL 可直接调用 `/mnt/d/...` 下的 Windows `.exe` 工具链。
 
 ```bash
-cmake --preset gui -DCMAKE_BUILD_TYPE=Release
+cmake --preset gui-mingw -DCMAKE_BUILD_TYPE=Release
 cmake --build build-gui --config Release
 
 ./build-gui/GraphViz.exe        # Windows PE 可执行文件

@@ -2,9 +2,9 @@
   "version": 6,
   "configurePresets": [
     {
-      "name": "gui",
+      "name": "gui-mingw",
       "inherits": "gui",
-      "description": "EXAMPLE: Copy to CMakeUserPresets.json and edit for your environment. On Linux with system Qt6, no overrides needed — skip this file entirely.",
+      "description": "Machine-specific MinGW compiler and Qt6 paths for Windows cross-compilation.",
       "generator": "MinGW Makefiles",
       "cacheVariables": {
         "CMAKE_PREFIX_PATH": "D:/Work/Development/Runtimes/Qt/6.11.1/mingw_64",
