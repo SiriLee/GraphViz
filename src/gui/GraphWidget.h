@@ -52,6 +52,9 @@ public:
     /// 获取当前坐标引用（用于外部修改，如拖动后同步）
     QHash<QString, QPointF>& positions() { return m_positions; }
 
+    /// 获取顶点渲染半径（动态调整以包裹长标签）
+    double vertexRadius(const QString& key) const;
+
     /// 设置路径高亮（顶点序列）
     void setPathHighlight(const QVector<QString>& nodes);
 
@@ -85,10 +88,14 @@ private:
     /// 获取某坐标处的顶点名（命中检测），未命中返回空字符串
     QString hitTest(const QPointF& screenPos) const;
 
+    /// 根据顶点标签文本长度计算每个顶点的渲染半径
+    void computeRadii();
+
     Graph* m_graph = nullptr;
 
     // ── 布局 ──
     QHash<QString, QPointF> m_positions;
+    QHash<QString, double>   m_vertexRadii;   // 每个顶点的渲染半径
 
     // ── 高亮数据 ──
     HighlightType m_highlightType = HighlightType::None;

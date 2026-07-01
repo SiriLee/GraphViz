@@ -148,6 +148,7 @@ void GraphWidget::setGraph(Graph* graph)
     m_graph = graph;
     clearHighlights();
     computeLayout();
+    computeRadii();
     update();
 }
 
@@ -253,6 +254,39 @@ void GraphWidget::setPositions(const QHash<QString, QPointF>& pos)
     m_positions = pos;
 }
 
+double GraphWidget::vertexRadius(const QString& key) const
+{
+    return m_vertexRadii.value(key, kNODE_RADIUS);
+}
+
+void GraphWidget::computeRadii()
+{
+    m_vertexRadii.clear();
+    if (!m_graph) return;
+
+    static constexpr double kMIN_RADIUS = kNODE_RADIUS;       // 20.0
+    static constexpr double kMAX_RADIUS = kNODE_RADIUS * 4.0; // 80.0
+    static constexpr double kH_PADDING  = 6.0;
+    static constexpr double kV_PADDING  = 4.0;
+
+    QFont font;
+    font.setPointSize(kFONT_SIZE);
+    QFontMetrics fm(font);
+
+    for (const auto& name : m_graph->getAllVertexNames()) {
+        QString key = QString::fromStdString(name);
+        QString display = QString::fromStdString(m_graph->getDisplayName(name));
+
+        double textW = static_cast<double>(fm.horizontalAdvance(display));
+        double textH = static_cast<double>(fm.height());
+        double neededW = textW + 2.0 * kH_PADDING;
+        double neededH = textH + 2.0 * kV_PADDING;
+
+        double r = std::max(neededW, neededH) / 2.0;
+        m_vertexRadii[key] = std::clamp(r, kMIN_RADIUS, kMAX_RADIUS);
+    }
+}
+
 // ── 命中检测 ──
 QString GraphWidget::hitTest(const QPointF& screenPos) const
 {
@@ -264,7 +298,8 @@ QString GraphWidget::hitTest(const QPointF& screenPos) const
         QPointF center = tr.map(it->x(), it->y());
         double dx = screenPos.x() - center.x();
         double dy = screenPos.y() - center.y();
-        if (std::hypot(dx, dy) <= kNODE_RADIUS + 3.0) {
+        double r = m_vertexRadii.value(it.key(), kNODE_RADIUS);
+        if (std::hypot(dx, dy) <= r + 3.0) {
             return it.key();
         }
     }
@@ -408,12 +443,15 @@ void GraphWidget::paintEvent(QPaintEvent* /*event*/)
         QPointF p1 = tr.map(m_positions.value(from));
         QPointF p2 = tr.map(m_positions.value(to));
 
+        double r_from = m_vertexRadii.value(from, kNODE_RADIUS);
+        double r_to   = m_vertexRadii.value(to,   kNODE_RADIUS);
+
         bool isSelfLoop = (e.from == e.to);
 
         // ── 自环：绘制弧线 ──
         if (isSelfLoop) {
             // 从顶点顶部出发的弧线
-            QPointF top(p1.x(), p1.y() - kNODE_RADIUS);
+            QPointF top(p1.x(), p1.y() - r_from);
             QRectF loopRect(top.x() - kLOOP_RADIUS,
                            top.y() - kLOOP_RADIUS * 1.5,
                            kLOOP_RADIUS * 2, kLOOP_RADIUS * 2);
@@ -495,14 +533,14 @@ void GraphWidget::paintEvent(QPaintEvent* /*event*/)
         double len = std::hypot(dir.x(), dir.y());
         QPointF unit = dir / len;
 
-        QPointF startPt = p1 + unit * kNODE_RADIUS + sharedPerp * offset;
-        QPointF endPt   = p2 - unit * (e.directed ? kNODE_RADIUS + kARROW_SIZE : kNODE_RADIUS) + sharedPerp * offset;
+        QPointF startPt = p1 + unit * r_from + sharedPerp * offset;
+        QPointF endPt   = p2 - unit * (e.directed ? r_to + kARROW_SIZE : r_to) + sharedPerp * offset;
 
         painter.drawLine(startPt, endPt);
 
         // 有向边：画箭头（偏移后）
         if (e.directed) {
-            QPointF arrowBase = p2 - unit * kNODE_RADIUS + sharedPerp * offset;
+            QPointF arrowBase = p2 - unit * r_to + sharedPerp * offset;
             QPointF p1Arrow = arrowBase;
             QPointF p2Arrow = arrowBase - unit * kARROW_SIZE + sharedPerp * (kARROW_SIZE * 0.5);
             QPointF p3Arrow = arrowBase - unit * kARROW_SIZE - sharedPerp * (kARROW_SIZE * 0.5);
@@ -567,15 +605,14 @@ void GraphWidget::paintEvent(QPaintEvent* /*event*/)
         else
             painter.setPen(QPen(kNODE_BORDER, 1.5));
 
-        painter.drawEllipse(center, kNODE_RADIUS, kNODE_RADIUS);
+        double r = m_vertexRadii.value(it.key(), kNODE_RADIUS);
+        painter.drawEllipse(center, r, r);
 
         // 标签
         painter.setPen(Qt::black);
         painter.setBrush(Qt::NoBrush);
-        QRectF textRect(center.x() - kNODE_RADIUS * 2,
-                        center.y() - kNODE_RADIUS,
-                        kNODE_RADIUS * 4,
-                        kNODE_RADIUS * 2);
+        QRectF textRect(center.x() - r, center.y() - r,
+                        r * 2.0, r * 2.0);
         std::string displayName = m_graph->getDisplayName(it.key().toStdString());
         painter.drawText(textRect, Qt::AlignCenter, QString::fromStdString(displayName));
     }
