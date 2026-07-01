@@ -7,31 +7,16 @@
   },
   "configurePresets": [
     {
-      "name": "cli",
-      "displayName": "CLI Only",
-      "description": "Build CLI version (no Qt dependency)",
-      "binaryDir": "${sourceDir}/build",
-      "cacheVariables": {
-        "BUILD_GUI": "OFF"
-      }
-    },
-    {
       "name": "gui",
       "displayName": "GUI (Qt 6)",
       "description": "Build with Qt6 GUI support (set CMAKE_PREFIX_PATH in CMakeUserPresets.json if Qt is not in system path)",
-      "inherits": "cli",
       "binaryDir": "${sourceDir}/build-gui",
       "cacheVariables": {
-        "BUILD_GUI": "ON",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     }
   ],
   "buildPresets": [
-    {
-      "name": "cli",
-      "configurePreset": "cli"
-    },
     {
       "name": "gui",
       "configurePreset": "gui"

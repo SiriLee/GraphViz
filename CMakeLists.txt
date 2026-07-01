@@ -7,14 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 enable_testing()
 
-# ── GUI 构建选项 ──
-option(BUILD_GUI "Build with Qt6 GUI support" ON)
-
-# ── GUI 前置配置 ──
-if(BUILD_GUI)
-    find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
-    set(CMAKE_AUTOMOC ON)
-endif()
+# ── Qt6 ──
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
+set(CMAKE_AUTOMOC ON)
 
 # ── 源文件 ──
 set(CORE_SOURCES
@@ -34,24 +29,19 @@ set(GUI_SOURCES
 add_executable(GraphViz WIN32
     src/main.cpp
     ${CORE_SOURCES}
+    ${GUI_SOURCES}
 )
 
-target_include_directories(GraphViz PRIVATE include)
+target_include_directories(GraphViz PRIVATE include src/gui)
+target_link_libraries(GraphViz PRIVATE Qt6::Widgets Qt6::Network)
+target_compile_definitions(GraphViz PRIVATE
+    GRAPHVIZ_VERSION="${PROJECT_VERSION}")
 
-if(BUILD_GUI)
-    target_sources(GraphViz PRIVATE ${GUI_SOURCES})
-    target_include_directories(GraphViz PRIVATE src/gui)
-    target_link_libraries(GraphViz PRIVATE Qt6::Widgets Qt6::Network)
-    target_compile_definitions(GraphViz PRIVATE BUILD_GUI=1)
-    target_compile_definitions(GraphViz PRIVATE
-        GRAPHVIZ_VERSION="${PROJECT_VERSION}")
-
-    if(WIN32)
-        add_custom_command(TARGET GraphViz POST_BUILD
-            COMMAND "${CMAKE_PREFIX_PATH}/bin/windeployqt.exe"
-                --no-translations
-                "$<TARGET_FILE:GraphViz>"
-            COMMENT "Deploying Qt runtime DLLs..."
-        )
-    endif()
+if(WIN32)
+    add_custom_command(TARGET GraphViz POST_BUILD
+        COMMAND "${CMAKE_PREFIX_PATH}/bin/windeployqt.exe"
+            --no-translations
+            "$<TARGET_FILE:GraphViz>"
+        COMMENT "Deploying Qt runtime DLLs..."
+    )
 endif()
