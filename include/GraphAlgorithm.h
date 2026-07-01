@@ -65,6 +65,14 @@ struct PlanarityResult {
     int edgeCount = 0;
 };
 
+/// 顶点着色结果
+struct ColoringResult {
+    std::vector<std::vector<std::string>> colorClasses;
+    int numColors = 0;
+    bool exact = false;
+    std::string message;
+};
+
 // ── 算法类 ──
 
 class GraphAlgorithm {
@@ -108,6 +116,11 @@ public:
 
     // ── 平面性检测 ──
     static PlanarityResult checkPlanarity(const Graph& graph);
+
+    // ── 顶点着色（Welsh-Powell + 回溯精确求解） ──
+    /// 仅支持无向图；有向图返回 exact=false, numColors=0
+    /// ≤30 顶点使用回溯求精确最小色数，>30 顶点使用 Welsh-Powell 近似
+    static ColoringResult graphColoring(const Graph& graph);
 };
 
 #endif // GRAPHALGORITHM_H

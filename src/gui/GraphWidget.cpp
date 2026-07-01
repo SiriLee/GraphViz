@@ -213,13 +213,15 @@ void GraphWidget::setEdgeHighlight(const QVector<QString>& edges,
     update();
 }
 
-void GraphWidget::setComponentHighlight(const QVector<QVector<QString>>& components)
+void GraphWidget::setComponentHighlight(const QVector<QVector<QString>>& components,
+                                       bool colorEdges)
 {
     m_highlightType = HighlightType::Component;
     m_pathNodes.clear();
     m_highlightEdges.clear();
     m_highlightNodes.clear();
     m_components = components;
+    m_componentColorEdges = colorEdges;
 
     // 为每个分量分配颜色
     m_componentColors.clear();
@@ -420,7 +422,7 @@ void GraphWidget::paintEvent(QPaintEvent* /*event*/)
             }
         }
 
-        if (m_highlightType == HighlightType::Component) {
+        if (m_highlightType == HighlightType::Component && m_componentColorEdges) {
             QColor compColor = m_componentColors.value(from, Qt::black);
             if (compColor == Qt::black)
                 compColor = m_componentColors.value(to, Qt::black);

@@ -206,6 +206,7 @@ QWidget* MainWindow::createControlBar()
         "连通分量 (BFS)",
         "强连通分量 (Kosaraju)",
         "平面性检测 (Planarity)",
+        "顶点着色 (Graph Coloring)",
     });
     layout->addWidget(m_algoCombo);
 
@@ -544,6 +545,24 @@ void MainWindow::onExecuteAlgorithm()
             } else {
                 updateStatus(QString("✗ 非平面图 — %1")
                     .arg(QString::fromStdString(result.message)));
+            }
+            break;
+        }
+        case 10: { // 顶点着色
+            auto result = GraphAlgorithm::graphColoring(*m_graph);
+            if (!result.exact && result.numColors == 0) {
+                QMessageBox::warning(this, "不支持",
+                    "顶点着色仅支持无向图，当前图包含有向边。");
+            } else {
+                QVector<QVector<QString>> comps;
+                for (const auto& cc : result.colorClasses) {
+                    QVector<QString> qcomp;
+                    for (const auto& n : cc)
+                        qcomp.append(QString::fromStdString(n));
+                    comps.append(qcomp);
+                }
+                m_graphWidget->setComponentHighlight(comps, false);
+                updateStatus(QString::fromStdString(result.message));
             }
             break;
         }

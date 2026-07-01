@@ -67,7 +67,8 @@ public:
                           HighlightType type);
 
     /// 设置连通分量高亮
-    void setComponentHighlight(const QVector<QVector<QString>>& components);
+    void setComponentHighlight(const QVector<QVector<QString>>& components,
+                               bool colorEdges = true);
 
     /// 清除所有高亮
     void clearHighlights();
@@ -104,6 +105,7 @@ private:
     QSet<QString> m_highlightNodes;
     QVector<QVector<QString>> m_components;
     QHash<QString, QColor> m_componentColors;
+    bool m_componentColorEdges = true;
 
     // ── 拖动状态 ──
     bool m_dragging = false;

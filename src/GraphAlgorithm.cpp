@@ -1233,3 +1233,131 @@ PlanarityResult GraphAlgorithm::checkPlanarity(const Graph& graph) {
         + std::string(nni <= 10 ? " (exhaustive check)" : "");
     return result;
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  顶点着色（Welsh-Powell + 回溯精确求解）
+// ═══════════════════════════════════════════════════════════════
+
+ColoringResult GraphAlgorithm::graphColoring(const Graph& graph)
+{
+    ColoringResult result;
+
+    // ── 拒绝有向图 ──
+    if (graph.hasDirectedEdges()) {
+        result.numColors = 0;
+        result.exact = false;
+        result.message = "图包含有向边，着色仅支持无向图";
+        return result;
+    }
+
+    auto allNodes = graph.getAllVertexNames();
+    int n = static_cast<int>(allNodes.size());
+
+    if (n == 0) {
+        result.numColors = 0;
+        result.exact = true;
+        result.message = "图为空，无需着色";
+        return result;
+    }
+
+    // ── 构建无向邻接（去重平行边） ──
+    std::unordered_map<std::string, std::unordered_set<std::string>> adj;
+    for (const auto& name : allNodes) {
+        for (const auto& e : graph.getAdjacent(name)) {
+            adj[name].insert(e.to);
+            adj[e.to].insert(name);
+        }
+    }
+
+    std::unordered_map<std::string, int> idx;
+    for (int i = 0; i < n; ++i)
+        idx[allNodes[i]] = i;
+
+    std::vector<std::vector<bool>> adjMatrix(n, std::vector<bool>(n, false));
+    for (const auto& name : allNodes) {
+        int u = idx[name];
+        auto it = adj.find(name);
+        if (it != adj.end()) {
+            for (const auto& vName : it->second) {
+                int v = idx[vName];
+                if (u != v) adjMatrix[u][v] = true;
+            }
+        }
+    }
+
+    // ── Welsh-Powell 贪心 ──
+    std::vector<int> order(n);
+    for (int i = 0; i < n; ++i) order[i] = i;
+    std::sort(order.begin(), order.end(), [&](int a, int b) {
+        size_t degA = 0, degB = 0;
+        auto itA = adj.find(allNodes[a]), itB = adj.find(allNodes[b]);
+        if (itA != adj.end()) degA = itA->second.size();
+        if (itB != adj.end()) degB = itB->second.size();
+        return degA > degB;
+    });
+
+    std::vector<int> colors(n, -1);
+    int wpColors = 0;
+    for (int u : order) {
+        std::vector<bool> used(n, false);
+        for (int v = 0; v < n; ++v) {
+            if (adjMatrix[u][v] && colors[v] != -1)
+                used[colors[v]] = true;
+        }
+        int c = 0;
+        while (used[c]) ++c;
+        colors[u] = c;
+        if (c + 1 > wpColors) wpColors = c + 1;
+    }
+
+    // ── 回溯精确求解（≤ 30 顶点） ──
+    if (n <= 30) {
+        int bestK = wpColors;
+        std::vector<int> bestColors = colors;
+        std::vector<int> curColors(n, -1);
+
+        std::function<void(int, int)> dfs = [&](int pos, int maxColor) {
+            if (pos == n) {
+                bestK = maxColor + 1;
+                bestColors = curColors;
+                return;
+            }
+
+            int u = order[pos];
+
+            std::vector<bool> neighborColors(n, false);
+            for (int v = 0; v < n; ++v) {
+                if (adjMatrix[u][v] && curColors[v] != -1)
+                    neighborColors[curColors[v]] = true;
+            }
+
+            int maxTry = std::min(bestK - 1, maxColor + 1);
+            for (int c = 0; c <= maxTry; ++c) {
+                if (neighborColors[c]) continue;
+                curColors[u] = c;
+                dfs(pos + 1, std::max(maxColor, c));
+                curColors[u] = -1;
+            }
+        };
+
+        dfs(0, -1);
+
+        result.colorClasses.resize(bestK);
+        for (int i = 0; i < n; ++i)
+            result.colorClasses[bestColors[i]].push_back(allNodes[i]);
+        result.numColors = bestK;
+        result.exact = true;
+        result.message = "顶点着色完成，色数 = " + std::to_string(bestK) + "（精确）";
+    } else {
+        // > 30 顶点：仅 Welsh-Powell 近似
+        result.colorClasses.resize(wpColors);
+        for (int i = 0; i < n; ++i)
+            result.colorClasses[colors[i]].push_back(allNodes[i]);
+        result.numColors = wpColors;
+        result.exact = false;
+        result.message = "顶点着色完成，色数 ≤ " + std::to_string(wpColors)
+            + "（近似，Welsh-Powell）";
+    }
+
+    return result;
+}
