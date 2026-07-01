@@ -63,6 +63,7 @@ MainWindow::MainWindow(QWidget *parent)
     helpMenu->addAction("检查更新(&U)", this, &MainWindow::onCheckForUpdates);
     helpMenu->addAction("打开下载页(&D)", this, &MainWindow::onOpenDownloadPage);
     helpMenu->addAction("使用说明(&H)", this, &MainWindow::onOpenManual);
+    helpMenu->addAction("问题反馈(&F)", this, &MainWindow::onOpenIssuePage);
     helpMenu->addSeparator();
     helpMenu->addAction("关于(&A)", this, &MainWindow::onAbout);
 
@@ -783,6 +784,12 @@ void MainWindow::onOpenManual()
     if (!QFile::exists(manualPath))
         manualPath = "docs/MANUAL.html";  // fallback when running from source tree
     QDesktopServices::openUrl(QUrl::fromLocalFile(manualPath));
+}
+
+void MainWindow::onOpenIssuePage()
+{
+    QDesktopServices::openUrl(
+        QUrl("https://github.com/SiriLee/GraphViz/issues"));
 }
 
 void MainWindow::onAbout()

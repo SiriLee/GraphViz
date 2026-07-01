@@ -41,6 +41,7 @@ private slots:
     void onCheckForUpdates();
     void onOpenDownloadPage();
     void onOpenManual();
+    void onOpenIssuePage();
     void onAbout();
 
 private:
