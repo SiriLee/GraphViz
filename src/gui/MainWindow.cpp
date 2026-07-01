@@ -169,25 +169,10 @@ QWidget* MainWindow::createControlBar()
     QWidget *bar = new QWidget(this);
     QHBoxLayout *layout = new QHBoxLayout(bar);
 
-    // 文件操作
-    QPushButton *btnOpen = new QPushButton("加载文件", this);
-    connect(btnOpen, &QPushButton::clicked, this, &MainWindow::onOpenFile);
-    layout->addWidget(btnOpen);
-
     QPushButton *btnParse = new QPushButton("解析并渲染", this);
     btnParse->setStyleSheet("font-weight: bold;");
     connect(btnParse, &QPushButton::clicked, this, &MainWindow::onParseAndRender);
     layout->addWidget(btnParse);
-
-    QPushButton *btnUndo = new QPushButton("↩ 撤销", this);
-    btnUndo->setToolTip("撤销文本编辑 (Ctrl+Z)");
-    connect(btnUndo, &QPushButton::clicked, this, &MainWindow::onUndo);
-    layout->addWidget(btnUndo);
-
-    QPushButton *btnRedo = new QPushButton("↪ 重做", this);
-    btnRedo->setToolTip("重做文本编辑 (Ctrl+Y)");
-    connect(btnRedo, &QPushButton::clicked, this, &MainWindow::onRedo);
-    layout->addWidget(btnRedo);
 
     layout->addSpacing(20);
 
