@@ -1,0 +1,16 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "gui",
+      "inherits": "gui",
+      "description": "EXAMPLE: Copy to CMakeUserPresets.json and edit for your environment. On Linux with system Qt6, no overrides needed — skip this file entirely.",
+      "generator": "MinGW Makefiles",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "D:/Work/Development/Runtimes/Qt/6.11.1/mingw_64",
+        "CMAKE_C_COMPILER": "D:/Work/Development/Runtimes/Qt/Tools/mingw1310_64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "D:/Work/Development/Runtimes/Qt/Tools/mingw1310_64/bin/g++.exe"
+      }
+    }
+  ]
+}

@@ -12,12 +12,6 @@ option(BUILD_GUI "Build with Qt6 GUI support" ON)
 
 # ── GUI 前置配置 ──
 if(BUILD_GUI)
-    if(NOT CMAKE_PREFIX_PATH)
-        message(FATAL_ERROR
-            "BUILD_GUI=ON requires CMAKE_PREFIX_PATH to point to Qt6 installation.\n"
-            "  Use cmake --preset gui, or set -DCMAKE_PREFIX_PATH=<qt_mingw_path>")
-    endif()
-
     find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
     set(CMAKE_AUTOMOC ON)
 endif()

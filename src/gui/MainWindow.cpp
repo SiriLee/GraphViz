@@ -11,6 +11,7 @@
 #include <QDesktopServices>
 #include <QFile>
 #include <QFileDialog>
+#include <QFontDatabase>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -152,7 +153,9 @@ QWidget* MainWindow::createInputPanel()
     layout->addWidget(label);
 
     m_textEdit = new GraphTextEdit(this);
-    m_textEdit->setFont(QFont("Consolas", 10));
+    QFont monoFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+    monoFont.setPointSize(10);
+    m_textEdit->setFont(monoFont);
     m_textEdit->setPlaceholderText(
         "输入边数据，每行一条：\n"
         "  a-->b    有向无权边\n"

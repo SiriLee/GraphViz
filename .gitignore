@@ -16,3 +16,4 @@ qrc_*.cpp
 .idea/
 .claude/
 CLAUDE.local.md
+CMakeUserPresets.json
