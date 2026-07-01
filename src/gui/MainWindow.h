@@ -66,6 +66,8 @@ private:
     bool m_hasHamiltonResult = false;
     EulerResult m_lastEulerResult;
     bool m_hasEulerResult = false;
+    PathResult m_lastPathResult;
+    bool m_hasPathResult = false;
 };
 
 #endif // MAINWINDOW_H

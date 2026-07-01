@@ -191,13 +191,15 @@ PathResult GraphAlgorithm::shortestPath(const Graph& graph,
         result.found = true;
         result.totalWeight = 0.0;
         result.nodes = {from};
+        result.allSolutions = {{from}};
+        result.solutionIndex = 0;
         return result;
     }
 
     const double INF = 1e18;
     std::unordered_map<std::string, double> dist;
-    std::unordered_map<std::string, std::string> prev;
-    std::unordered_map<std::string, std::string> prevEdge;  // 记录入边键
+    // 每个顶点的所有前驱（最短路径 DAG 中的入边来源）
+    std::unordered_map<std::string, std::unordered_set<std::string>> predecessors;
 
     for (const auto& name : graph.getAllVertexNames())
         dist[name] = INF;
@@ -211,22 +213,25 @@ PathResult GraphAlgorithm::shortestPath(const Graph& graph,
     while (!pq.empty()) {
         auto [d, u] = pq.top(); pq.pop();
         if (d > dist[u]) continue;
-        if (u == to) break;
 
         for (const auto& e : graph.getAdjacent(u)) {
             std::string v = e.to;
+            if (u == v) continue;  // skip self-loops to prevent infinite backtrack
             double nd = d + e.weight;
             // 无向边或有向出边都可以通过
             if (e.directed && e.from != u) continue; // 仅沿出边方向
-            if (nd < dist[v]) {
+            if (nd < dist[v] - 1e-12) {
+                // 发现更短路径：清空旧前驱，记录新前驱
                 dist[v] = nd;
-                prev[v] = u;
-                prevEdge[v] = edgeKey(u, v);
+                predecessors[v].clear();
+                predecessors[v].insert(u);
                 pq.push({nd, v});
+            } else if (std::abs(nd - dist[v]) < 1e-12) {
+                // 等代价备选路径：添加为额外前驱
+                predecessors[v].insert(u);
+                // 不推入 PQ —— 距离未改变
             }
         }
-
-        // 有向图额外检查入边（从 u 出发能到达的已在邻接表中，不需要额外处理）
     }
 
     if (dist[to] >= INF / 2) {
@@ -237,22 +242,40 @@ PathResult GraphAlgorithm::shortestPath(const Graph& graph,
     result.found = true;
     result.totalWeight = dist[to];
 
-    // 回溯路径
-    std::vector<std::string> pathNodes;
-    std::vector<std::string> pathEdges;
-    std::string cur = to;
-    while (cur != from) {
-        pathNodes.push_back(cur);
-        std::string p = prev[cur];
-        pathEdges.push_back(undirectedKey(p, cur));
-        cur = p;
-    }
-    pathNodes.push_back(from);
-    std::reverse(pathNodes.begin(), pathNodes.end());
-    std::reverse(pathEdges.begin(), pathEdges.end());
+    // DFS 回溯枚举所有最短路径（前驱 DAG 中 cap 50 条）
+    const int MAX_SOLUTIONS = 50;
+    std::vector<std::vector<std::string>> allSolutions;
+    std::vector<std::string> currentPath;
 
-    result.nodes = pathNodes;
-    result.edges = pathEdges;
+    std::function<void(const std::string&)> dfs = [&](const std::string& v) {
+        if (static_cast<int>(allSolutions.size()) >= MAX_SOLUTIONS) return;
+        currentPath.push_back(v);
+        if (v == from) {
+            auto sol = currentPath;
+            std::reverse(sol.begin(), sol.end());
+            allSolutions.push_back(std::move(sol));
+        } else {
+            auto it = predecessors.find(v);
+            if (it != predecessors.end()) {
+                for (const auto& u : it->second) {
+                    dfs(u);
+                }
+            }
+        }
+        currentPath.pop_back();
+    };
+
+    dfs(to);
+
+    result.allSolutions = std::move(allSolutions);
+    if (!result.allSolutions.empty()) {
+        result.nodes = result.allSolutions[0];
+        // 从节点序列重构边键
+        result.edges.clear();
+        for (size_t i = 0; i + 1 < result.nodes.size(); ++i)
+            result.edges.push_back(undirectedKey(result.nodes[i], result.nodes[i + 1]));
+    }
+    result.solutionIndex = 0;
 
     return result;
 }

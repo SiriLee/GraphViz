@@ -13,8 +13,10 @@
 struct PathResult {
     bool found = false;
     double totalWeight = 0.0;
-    std::vector<std::string> nodes;     // 路径顶点序列
-    std::vector<std::string> edges;     // 路径边序列（格式 "from|to"）
+    std::vector<std::string> nodes;                      // 当前显示的解
+    std::vector<std::string> edges;                      // 当前显示的解的边序列（格式 "from|to"）
+    std::vector<std::vector<std::string>> allSolutions;  // 所有最短路径 (v1.3.0)
+    int solutionIndex = 0;                               // 当前解索引
 };
 
 /// 连通分量结果

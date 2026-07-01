@@ -361,13 +361,25 @@ void MainWindow::onExecuteAlgorithm()
             std::string toKey   = m_graph->resolveVertexName(to.toStdString());
             auto result = GraphAlgorithm::shortestPath(
                 *m_graph, fromKey, toKey);
+            m_lastPathResult = result;
+            m_hasPathResult = result.found && result.allSolutions.size() > 1;
             if (result.found) {
                 QVector<QString> nodes;
                 for (const auto& n : result.nodes)
                     nodes.append(QString::fromStdString(n));
                 m_graphWidget->setPathHighlight(nodes);
-                updateStatus(QString("最短路径: 权重 %1, %2")
-                    .arg(result.totalWeight).arg(displaySeq(result.nodes)));
+                if (result.allSolutions.size() > 1) {
+                    m_btnPrevSolution->setEnabled(true);
+                    m_btnNextSolution->setEnabled(true);
+                    updateStatus(QString("最短路径: 解 %1/%2, 权重 %3, %4")
+                        .arg(result.solutionIndex + 1)
+                        .arg(result.allSolutions.size())
+                        .arg(result.totalWeight)
+                        .arg(displaySeq(result.nodes)));
+                } else {
+                    updateStatus(QString("最短路径: 权重 %1, %2")
+                        .arg(result.totalWeight).arg(displaySeq(result.nodes)));
+                }
             } else {
                 updateStatus("未找到最短路径（不连通？）");
             }
@@ -618,6 +630,7 @@ void MainWindow::clearSolutionButtons()
     m_btnNextSolution->setEnabled(false);
     m_hasHamiltonResult = false;
     m_hasEulerResult = false;
+    m_hasPathResult = false;
 }
 
 void MainWindow::onPrevSolution()
@@ -628,6 +641,26 @@ void MainWindow::onPrevSolution()
             parts.append(QString::fromStdString(m_graph->getDisplayName(n)));
         return parts.join(" → ");
     };
+    if (m_hasPathResult) {
+        auto& result = m_lastPathResult;
+        int total = static_cast<int>(result.allSolutions.size());
+        if (total <= 1) return;
+        result.solutionIndex = (result.solutionIndex - 1 + total) % total;
+        result.nodes = result.allSolutions[result.solutionIndex];
+        result.edges.clear();
+        for (size_t i = 0; i + 1 < result.nodes.size(); ++i)
+            result.edges.push_back(
+                (std::min(result.nodes[i], result.nodes[i + 1]) + "|" +
+                 std::max(result.nodes[i], result.nodes[i + 1])));
+        QVector<QString> qnodes;
+        for (const auto& n : result.nodes)
+            qnodes.append(QString::fromStdString(n));
+        m_graphWidget->setPathHighlight(qnodes);
+        updateStatus(QString("最短路径: 解 %1/%2, 权重 %3, %4")
+            .arg(result.solutionIndex + 1).arg(total)
+            .arg(result.totalWeight).arg(displaySeq(result.nodes)));
+        return;
+    }
     if (m_hasEulerResult) {
         auto& result = m_lastEulerResult;
         int total = static_cast<int>(result.allSolutions.size());
@@ -663,6 +696,26 @@ void MainWindow::onNextSolution()
             parts.append(QString::fromStdString(m_graph->getDisplayName(n)));
         return parts.join(" → ");
     };
+    if (m_hasPathResult) {
+        auto& result = m_lastPathResult;
+        int total = static_cast<int>(result.allSolutions.size());
+        if (total <= 1) return;
+        result.solutionIndex = (result.solutionIndex + 1) % total;
+        result.nodes = result.allSolutions[result.solutionIndex];
+        result.edges.clear();
+        for (size_t i = 0; i + 1 < result.nodes.size(); ++i)
+            result.edges.push_back(
+                (std::min(result.nodes[i], result.nodes[i + 1]) + "|" +
+                 std::max(result.nodes[i], result.nodes[i + 1])));
+        QVector<QString> qnodes;
+        for (const auto& n : result.nodes)
+            qnodes.append(QString::fromStdString(n));
+        m_graphWidget->setPathHighlight(qnodes);
+        updateStatus(QString("最短路径: 解 %1/%2, 权重 %3, %4")
+            .arg(result.solutionIndex + 1).arg(total)
+            .arg(result.totalWeight).arg(displaySeq(result.nodes)));
+        return;
+    }
     if (m_hasEulerResult) {
         auto& result = m_lastEulerResult;
         int total = static_cast<int>(result.allSolutions.size());
