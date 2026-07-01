@@ -20,7 +20,9 @@ public:
 
     // Initiate an async check against the GitHub Releases API.
     // Emits updateCheckFinished() when done.
-    void checkForUpdates();
+    // |manual|: true = user-triggered (always runs),
+    //           false = auto-check (runs at most once per day).
+    void checkForUpdates(bool manual = false);
 
 signals:
     // Emitted exactly once per checkForUpdates() call.
@@ -40,6 +42,7 @@ private:
     static bool isNewer(const QString &remote, const QString &current);
 
     QNetworkAccessManager *m_manager;
+    bool m_checking = false;
 };
 
 #endif // UPDATECHECKER_H

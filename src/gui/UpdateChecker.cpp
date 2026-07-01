@@ -1,8 +1,11 @@
 #include "UpdateChecker.h"
 
+#include <QDate>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QSettings>
 #include <QUrl>
 #include <array>
 #include <optional>
@@ -15,8 +18,23 @@ UpdateChecker::UpdateChecker(QObject *parent)
             this, &UpdateChecker::onReplyFinished);
 }
 
-void UpdateChecker::checkForUpdates()
+void UpdateChecker::checkForUpdates(bool manual)
 {
+    // ── Guard: prevent concurrent checks ──
+    if (m_checking)
+        return;
+
+    // ── Auto-check: run at most once per day ──
+    if (!manual) {
+        QSettings settings;
+        const QDate lastCheck = settings.value("update/lastCheckDate").toDate();
+        if (lastCheck == QDate::currentDate())
+            return;
+        settings.setValue("update/lastCheckDate", QDate::currentDate());
+    }
+
+    m_checking = true;
+
     QNetworkRequest request(
         QUrl("https://api.github.com/repos/SiriLee/GraphViz/releases/latest"));
 
@@ -33,12 +51,21 @@ void UpdateChecker::checkForUpdates()
 void UpdateChecker::onReplyFinished(QNetworkReply *reply)
 {
     reply->deleteLater();
+    m_checking = false;
 
     // ── Network error ──
     if (reply->error() != QNetworkReply::NoError) {
-        emit updateCheckFinished(
-            UpdateStatus::Error,
-            reply->errorString());
+        // GitHub API rate limit (403 Forbidden)
+        int httpStatus = reply->attribute(
+            QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (httpStatus == 403) {
+            emit updateCheckFinished(UpdateStatus::Error,
+                QString::fromUtf8("GitHub API 请求过于频繁，请稍后再试"
+                    "（未认证请求每小时限 60 次）"));
+        } else {
+            emit updateCheckFinished(UpdateStatus::Error,
+                reply->errorString());
+        }
         return;
     }
 

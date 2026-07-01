@@ -135,8 +135,10 @@ void MainWindow::showEvent(QShowEvent *event)
         firstShow = false;
         loadSampleGraph();
 
-        // 启动后 ~2s 异步检查更新
-        QTimer::singleShot(2000, this, &MainWindow::onCheckForUpdates);
+        // 启动后 ~2s 异步检查更新（每天最多一次）
+        QTimer::singleShot(2000, this, [this]() {
+            m_updateChecker->checkForUpdates(false);
+        });
     }
 }
 
@@ -753,7 +755,7 @@ void MainWindow::onNextSolution()
 void MainWindow::onCheckForUpdates()
 {
     updateStatus("正在检查更新...");
-    m_updateChecker->checkForUpdates();
+    m_updateChecker->checkForUpdates(true);
 }
 
 void MainWindow::onOpenDownloadPage()
