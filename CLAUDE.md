@@ -4,20 +4,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build & Run
 
+Requires CMake ≥ 3.19 and a C++17 compiler. Qt 6 (Widgets + Network modules) is always required — there is no CLI-only build.
+
+The single `gui` configure preset outputs to `build-gui/`. No compiler or Qt paths are hardcoded in `CMakePresets.json`; machine-specific overrides go in `CMakeUserPresets.json` (see `CMakeUserPresets.json.example` for the MinGW template).
+
+### Mode A: WSL native / Linux (system Qt6)
+
+Qt 6 installed via the system package manager (e.g. `apt install qt6-base-dev`) is found automatically by CMake. No user preset needed.
+
 ```bash
-# Configure & build (GUI with Qt6 MinGW)
 cmake --preset gui -DCMAKE_BUILD_TYPE=Release
 cmake --build build-gui --config Release
 
-# Run
-./build-gui/GraphViz.exe
-
-# CLI-only build (no Qt dependency)
-cmake --preset default
-cmake --build build
+./build-gui/GraphViz            # ELF binary, runs via WSLg or native X11/Wayland
 ```
 
-**Prerequisites**: CMake ≥ 3.19, C++17 compiler (MinGW), Qt 6 (Widgets module). The preset hardcodes Qt paths in `CMakePresets.json` — update `CMAKE_PREFIX_PATH`, `CMAKE_C_COMPILER`, `CMAKE_CXX_COMPILER` for other machines. Post-build, `windeployqt` auto-deploys Qt DLLs into the build directory.
+### Mode B: MinGW cross-compilation (Windows Qt6)
+
+Copy `CMakeUserPresets.json.example` to `CMakeUserPresets.json` and adjust the compiler and Qt paths for your machine. WSL can invoke Windows `.exe` binaries directly, so the MinGW toolchain on `/mnt/d/...` works from the WSL terminal.
+
+```bash
+cmake --preset gui -DCMAKE_BUILD_TYPE=Release
+cmake --build build-gui --config Release
+
+./build-gui/GraphViz.exe        # Windows PE binary
+```
+
+The `if(WIN32)` block in `CMakeLists.txt` runs `windeployqt` automatically after a successful cross-compilation build, copying required Qt DLLs into the build directory.
+
+### Prerequisites
+
+| Requirement | Mode A (Linux/WSL native) | Mode B (MinGW cross) |
+|---|---|---|
+| Compiler | g++ ≥ 10 or clang++ | MinGW-w64 g++ (Windows) |
+| Qt 6 | `apt install qt6-base-dev` | Prebuilt Qt for MinGW 64-bit |
+| CMake | `apt install cmake` (≥ 3.19) | same |
+| windeployqt | N/A | bundled with Qt |
 
 No test suite exists (`enable_testing()` is in CMakeLists.txt but tests were removed). Manual verification: launch the app and load files from `test_data/` or `samples/`.
 
