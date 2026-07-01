@@ -147,9 +147,9 @@
 <main>
 
 <h1>GraphViz 使用说明</h1>
-<blockquote>适用版本：v1.2.1+</blockquote>
+<blockquote>适用版本：v1.3.0</blockquote>
 
-<p>GraphViz 是一款基于 C++/Qt6 的图论可视化桌面工具。支持有向图和无向图的文本输入、力导向自动布局、鼠标拖拽交互，以及 10 种经典图论算法的高亮展示。</p>
+<p>GraphViz 是一款基于 C++/Qt6 的图论可视化桌面工具。支持有向图和无向图的文本输入、力导向自动布局、鼠标拖拽交互、自适应顶点圆圈大小，以及 11 种经典图论算法的高亮展示。</p>
 
 <hr>
 
@@ -251,7 +251,7 @@
 
 <hr>
 
-<h2 id="algorithms">图论算法（10 种）</h2>
+<h2 id="algorithms">图论算法（11 种）</h2>
 
 <p>在底部控制栏选择算法，可选填起点 / 终点参数，点击「执行」。</p>
 
@@ -267,6 +267,7 @@
 <tr><td>8</td><td>连通分量</td><td>BFS</td><td>—</td><td>多色</td></tr>
 <tr><td>9</td><td>强连通分量</td><td>Kosaraju</td><td>—</td><td>多色</td></tr>
 <tr><td>10</td><td>平面性检测</td><td>Euler 公式 + K₅ / K₃,₃</td><td>—</td><td>状态栏</td></tr>
+<tr><td>11</td><td>顶点着色</td><td>Welsh-Powell + 回溯 (≤30)</td><td>—</td><td>多色类</td></tr>
 </table>
 
 <h3>算法说明</h3>
@@ -275,6 +276,7 @@
 <ul>
   <li>支持有向 / 无向混合图，权重为 double</li>
   <li>须在「起点」和「终点」输入框填写顶点名</li>
+  <li>多解支持：枚举所有等权最短路径（上限 50 条），用「上一解 / 下一解」按钮切换</li>
 </ul>
 
 <p><strong>最小生成树 (Kruskal)</strong></p>
@@ -298,6 +300,14 @@
 
 <p><strong>平面性检测</strong></p>
 <ul><li>使用 Euler 公式、K₅ / K₃,₃ 子图判定</li></ul>
+
+<p><strong>顶点着色 (Welsh-Powell + 回溯)</strong></p>
+<ul>
+  <li>仅支持无向图，含向边时弹出提示</li>
+  <li>Welsh-Powell 贪心按度降序依次分配最小可用颜色</li>
+  <li>≤30 顶点时回溯搜索真色数，>30 顶点返回贪心近似</li>
+  <li>结果按色类分区高亮</li>
+</ul>
 
 <p><strong>连通分量 (BFS) / 强连通分量 (Kosaraju)</strong></p>
 <ul><li>各分量独立着色，大小降序排列</li></ul>
@@ -331,6 +341,7 @@
   <li><strong>自环</strong>：弧线形式渲染在顶点上方</li>
   <li><strong>平行边</strong>：自动垂直偏移 ±7px 分开</li>
   <li><strong>权重显示</strong>：图中任一边显式提供权重时，全部边显示权值；否则全部隐藏</li>
+  <li><strong>自适应圆圈</strong>：顶点圆半径根据标签文本宽度动态计算（20–80px 区间），长标签自动放大</li>
   <li><strong>高亮</strong>：每种算法有专属颜色（绿 / 橙 / 红紫 / 蓝 / 青 / 多色）</li>
 </ul>
 
@@ -351,7 +362,7 @@ Edge:  VERTEX [&lt;] DASHES [WEIGHT] DASHES [&gt;] VERTEX
   A---B     undirected         A-3--B    undirected, wt 3
   A--&gt;B     directed A→B       A-2.5-&gt;B  directed A→B, wt 2.5
   A&lt;-B      directed B→A       A&lt;-3--B   directed B→A, wt 3
-  A&lt;--&gt;B    bidirectional       A-"-2"-&gt;B negative wt
+  A&lt;--&gt;B    undirected          A-"-2"-&gt;B negative wt
 
 Isolated: name alone on a line, e.g. D or "Isolated node".
 Same-label: N(suffix), suffix = non-negative integer, e.g. 2(1)---3.

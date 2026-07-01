@@ -1,6 +1,6 @@
 # GraphViz — 图论可视化工具
 
-基于 C++/Qt6 的图论可视化桌面工具。支持有向图和无向图的文本输入、力导向自动布局、鼠标拖拽交互，以及 10 种经典图论算法的高亮展示。无第三方依赖（除 Qt 和 C++ 标准库）。
+基于 C++/Qt6 的图论可视化桌面工具。支持有向图和无向图的文本输入、力导向自动布局、鼠标拖拽交互、自适应顶点圆圈大小，以及 11 种经典图论算法的高亮展示。无第三方依赖（除 Qt 和 C++ 标准库）。
 
 ![程序全貌](docs/screenshots/overview.png)
 
@@ -20,7 +20,7 @@ GraphViz/
 │   ├── GraphTypes.h            # Vertex / Edge 数据结构
 │   ├── Graph.h                 # 图存储层（邻接表，支持平行边和自环）
 │   ├── GraphParser.h           # 边格式文本解析器
-│   └── GraphAlgorithm.h        # 10 种算法声明 + 结果结构体
+│   └── GraphAlgorithm.h        # 11 种算法声明 + 结果结构体
 ├── src/                        # 实现文件
 │   ├── main.cpp                # 应用入口
 │   ├── Graph.cpp               # 图存储实现
@@ -50,10 +50,10 @@ GraphViz/
 | `GraphTypes.h` | `Vertex`（name + 自增 id）、`Edge`（from/to/weight/directed/id/explicit_weight） |
 | `Graph` | 邻接表存储，支持有向/无向混合、平行边、自环。Edge 按唯一 id 去重，`hasExplicitWeight()` 控制全局权重显示 |
 | `GraphParser` | 灵活文本解析：手动字符扫描 + 引号名 + 转义 + 操作符结构校验 + 负权引号格式 + 孤立点 |
-| `GraphAlgorithm` | 全部算法静态方法：Dijkstra、Kruskal、Tarjan、Hierholzer（多解+指定起点）、回溯哈密顿（多解+指定起点）、BFS/Kosaraju 分量、平面性检测 |
+| `GraphAlgorithm` | 全部算法静态方法：Dijkstra（多解）、Kruskal、Tarjan、Hierholzer（多解+指定起点）、回溯哈密顿（多解+指定起点）、BFS/Kosaraju 分量、平面性检测、顶点着色（Welsh-Powell + 回溯） |
 | `MainWindow` | 菜单栏（文件/编辑/视图/帮助）、左侧编辑面板、控制栏（算法选择/参数/按钮）、状态栏 |
 | `UpdateChecker` | QObject 子类，异步调用 GitHub Releases API 获取最新版本号，语义化版本比较 |
-| `GraphWidget` | QWidget 子类，paintEvent 手绘：节点圆+标签、有向箭头、自环弧线、平行边偏移、权重标签分散、高亮着色 |
+| `GraphWidget` | QWidget 子类，paintEvent 手绘：节点圆+标签（半径自适应文本 20–80px）、有向箭头、自环弧线、平行边偏移、权重标签分散、高亮着色 |
 | `GraphTextEdit` | QPlainTextEdit 子类，增加 Shift+Tab 前向缩进（Key_Backtab 处理） |
 | `ForceLayout` | Fruchterman-Reingold 算法：环形初始分布（+小幅抖动）、乘法降温 150 次迭代、软边界、平行边端点对去重 |
 
@@ -183,18 +183,20 @@ cmake --build build-gui --config Release
 - **自环**：弧线形式渲染在顶点上方
 - **平行边**：自动垂直偏移 ±7px 分开，权重标签沿边均匀分散
 - **权重显示**：图中任一边显式提供权重时，全部边显示权值；否则全部隐藏
+- **自适应圆圈**：顶点圆半径根据标签文本宽度动态计算（QFontMetrics 测量，20–80px 区间），长标签自动放大
 - **高亮**：每种算法有专属颜色（绿/橙/红紫/蓝/青/多色）
 
 ### 帮助菜单（v1.2.0+）
 
-- **检查更新**：启动后异步查询 [GitHub Releases API](https://api.github.com/repos/SiriLee/GraphViz/releases/latest)，发现有新版本时状态栏持续提示，已是最新或网络异常时自动消失。菜单项支持手动触发。
+- **检查更新**：启动后异步查询 [GitHub Releases API](https://api.github.com/repos/SiriLee/GraphViz/releases/latest)，发现有新版本时状态栏持续提示，已是最新或网络异常时自动消失。每日自动检查一次，内置 API 限流守卫。菜单项支持手动触发。
 - **打开下载页**：调用系统默认浏览器打开 [GitHub Releases](https://github.com/SiriLee/GraphViz/releases) 页面。
-- **使用说明**：浏览器打开内置 MANUAL.html（自包含 CSS），提供完整的输入格式参考、快捷键、10 种算法说明和示例图列表。
+- **使用说明**：浏览器打开内置 MANUAL.html（自包含 CSS），提供完整的输入格式参考、快捷键、11 种算法说明和示例图列表。
+- **问题反馈**：打开浏览器跳转到 [GitHub Issues](https://github.com/SiriLee/GraphViz/issues) 页面，方便用户提交 bug 或功能建议。
 - **关于**：显示版本号、项目简介、Qt 运行时版本、GitHub 链接和 MIT 许可证。
 
 ---
 
-## 图论算法（10 种）
+## 图论算法（11 种）
 
 ![欧拉回路](docs/screenshots/euler-circuit.png)
 
@@ -210,12 +212,14 @@ cmake --build build-gui --config Release
 | 8 | 连通分量 | BFS | — | 多色 |
 | 9 | 强连通分量 | Kosaraju | — | 多色 |
 | 10 | 平面性检测 | Euler公式 + K5/K3,3 | — | 状态栏 |
+| 11 | 顶点着色 | Welsh-Powell + 回溯 (≤30) | — | 多色类 |
 
 ### 算法说明
 
 **最短路径 (Dijkstra)**
 - 支持有向/无向混合图，权重为 double
 - 使用 `std::priority_queue` + `std::greater`，确定性出队
+- 多解支持：前驱 DAG + DFS 回溯枚举所有等权最短路径（上限 50 条），UI 提供「上一解 / 下一解」切换
 
 **最小生成树 (Kruskal)**
 - 仅作用于无向边；DSU 判环
@@ -242,6 +246,12 @@ cmake --build build-gui --config Release
 - Euler 公式快速否定 (m_unique > 3n-6)
 - n≤10 暴力搜索 K5/K3,3 子图
 - n≤4 自动判定平面
+
+**顶点着色 (Welsh-Powell + 回溯)**
+- 仅支持无向图，含向边时提示
+- Welsh-Powell 贪心：按度降序依次分配最小可用颜色
+- 回溯精确求解：≤30 顶点时在贪心上界内搜索真色数，>30 顶点返回贪心近似（`exact=false`）
+- 结果按色类分区高亮
 
 **连通分量 (BFS) / 强连通分量 (Kosaraju)**
 - 分量大小降序排列，各分量独立着色
