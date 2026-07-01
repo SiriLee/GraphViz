@@ -24,8 +24,6 @@
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
-#include <fstream>
-#include <sstream>
 
 // 示例图数据
 static const char* SAMPLE_GRAPH =
@@ -275,14 +273,12 @@ void MainWindow::onOpenFile()
         "图数据文件 (*.graph *.txt);;所有文件 (*.*)");
     if (path.isEmpty()) return;
 
-    std::ifstream file(path.toStdString());
-    if (!file) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QMessageBox::warning(this, "错误", "无法打开文件: " + path);
         return;
     }
-    std::ostringstream oss;
-    oss << file.rdbuf();
-    m_textEdit->setPlainText(QString::fromStdString(oss.str()));
+    m_textEdit->setPlainText(QString::fromUtf8(file.readAll()));
     onParseAndRender();
     updateStatus("已加载: " + path);
 }
@@ -295,12 +291,12 @@ void MainWindow::onSaveFile()
     if (path.isEmpty()) return;
 
     std::string data = GraphParser::serialize(*m_graph);
-    std::ofstream file(path.toStdString());
-    if (!file) {
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QMessageBox::warning(this, "错误", "无法写入文件: " + path);
         return;
     }
-    file << data;
+    file.write(data.c_str(), data.size());
     updateStatus("已保存: " + path);
 }
 
