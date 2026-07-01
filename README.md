@@ -11,7 +11,7 @@
 ```
 GraphViz/
 ├── CMakeLists.txt              # 根 CMake（C++17，Qt6 Widgets，AUTOMOC）
-├── CMakePresets.json           # CMake 构建预设（default=CLI, gui=Qt6）
+├── CMakePresets.json           # CMake 构建预设（gui）
 ├── README.md
 ├── docs/
 │   ├── MANUAL.html              # 用户使用说明书（随包分发）
@@ -61,23 +61,36 @@ GraphViz/
 
 ## 编译与运行
 
-**环境要求**：CMake ≥ 3.19，GCC/MinGW 支持 C++17。额外需要 Qt 6 (Widgets 模块, MinGW 64-bit)。
+**环境要求**：CMake ≥ 3.19，C++17 编译器，Qt 6（Widgets + Network 模块）。
+
+CMakePresets.json 不硬编码编译器或 Qt 路径，机器特定的配置通过 `CMakeUserPresets.json` 覆盖（模板见 `CMakeUserPresets.json.example`）。
+
+### 方式一：WSL 原生 / Linux（系统 Qt6）
+
+通过系统包管理器安装 Qt6（如 `apt install qt6-base-dev`），CMake 自动查找。无需 CMakeUserPresets.json。
 
 ```bash
 git clone https://github.com/SiriLee/GraphViz.git
 cd GraphViz
 
-# 修改 CMakePresets.json 中的 CMAKE_PREFIX_PATH 指向本地 Qt 安装
-
-# 配置 & 编译
 cmake --preset gui -DCMAKE_BUILD_TYPE=Release
 cmake --build build-gui --config Release
 
-# 运行
-./build-gui/GraphViz.exe
+./build-gui/GraphViz            # ELF 二进制，通过 WSLg 或原生 X11/Wayland 显示
 ```
 
-> **Qt 路径配置**：`CMakePresets.json` 中硬编码了 Qt 6.11.1 MinGW 路径。换机器时修改 `CMAKE_PREFIX_PATH`、`CMAKE_C_COMPILER`、`CMAKE_CXX_COMPILER` 三个变量即可。
+### 方式二：MinGW 交叉编译（Windows Qt6）
+
+将 `CMakeUserPresets.json.example` 复制为 `CMakeUserPresets.json`，修改其中的 MinGW 编译器路径和 Qt 路径指向本机 Windows 侧安装。WSL 可直接调用 `/mnt/d/...` 下的 Windows `.exe` 工具链。
+
+```bash
+cmake --preset gui -DCMAKE_BUILD_TYPE=Release
+cmake --build build-gui --config Release
+
+./build-gui/GraphViz.exe        # Windows PE 可执行文件
+```
+
+CMakeLists.txt 中的 `if(WIN32)` 块在交叉编译成功后会**自动执行 `windeployqt`**，将所需 Qt DLL 复制到构建目录。
 
 ### Portable 版
 
