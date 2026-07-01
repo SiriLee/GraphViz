@@ -24,6 +24,7 @@
       "binaryDir": "${sourceDir}/build-gui",
       "cacheVariables": {
         "BUILD_GUI": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "CMAKE_PREFIX_PATH": "D:/Work/Development/Runtimes/Qt/6.11.1/mingw_64",
         "CMAKE_C_COMPILER": "D:/Work/Development/Runtimes/Qt/Tools/mingw1310_64/bin/gcc.exe",
         "CMAKE_CXX_COMPILER": "D:/Work/Development/Runtimes/Qt/Tools/mingw1310_64/bin/g++.exe"
