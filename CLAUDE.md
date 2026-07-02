@@ -24,10 +24,10 @@ cmake --build build-gui --config Release
 Copy `CMakeUserPresets.json.example` to `CMakeUserPresets.json` and adjust the compiler and Qt paths for your machine. WSL can invoke Windows `.exe` binaries directly, so the MinGW toolchain on `/mnt/d/...` works from the WSL terminal.
 
 ```bash
-cmake --preset gui -DCMAKE_BUILD_TYPE=Release
-cmake --build build-gui --config Release
+cmake --preset gui-mingw -DCMAKE_BUILD_TYPE=Release
+cmake --build build-gui-mingw --config Release
 
-./build-gui/GraphViz.exe        # Windows PE binary
+./build-gui-mingw/GraphViz.exe        # Windows PE binary
 ```
 
 The `if(WIN32)` block in `CMakeLists.txt` runs `windeployqt` automatically after a successful cross-compilation build, copying required Qt DLLs into the build directory.

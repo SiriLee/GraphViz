@@ -4,6 +4,7 @@
     {
       "name": "gui-mingw",
       "inherits": "gui",
+      "binaryDir": "${sourceDir}/build-gui-mingw",
       "description": "Machine-specific MinGW compiler and Qt6 paths for Windows cross-compilation.",
       "generator": "MinGW Makefiles",
       "cacheVariables": {
